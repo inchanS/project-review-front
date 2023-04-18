@@ -41,17 +41,16 @@ export const useCardList = (pageNumber: number, categoryId: any) => {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    let cancel: any;
+    const controller = new AbortController();
     if (query) {
-      axios({
-        method: 'GET',
-        url: `${BACK_URL}:${BACK_PORT}/search/list`,
-        params: { query: query, index: pageNumber },
-        cancelToken: new axios.CancelToken(c => {
-          cancel = c;
-        }),
-        timeout: 5000,
-      })
+      axios
+        .get(
+          `${BACK_URL}:${BACK_PORT}/search/list?query=${query}&index=${pageNumber}`,
+          {
+            timeout: 5000,
+            signal: controller.signal,
+          }
+        )
         .then(res => {
           setCardList(prevCardList => {
             return [...new Set([...prevCardList, ...res.data])];
@@ -59,23 +58,23 @@ export const useCardList = (pageNumber: number, categoryId: any) => {
           setHasMore(res.data.length > 0);
           setLoading(false);
         })
-        .catch(e => {
-          if (axios.isCancel(e)) {
+        .catch(error => {
+          if (error.name === 'AbortError') {
             return;
           }
           setError(true);
         });
-      return () => cancel();
+      return () => controller.abort();
     }
     if (!query || categoryId === 0 || categoryId) {
-      axios({
-        method: 'GET',
-        url: `${BACK_URL}:${BACK_PORT}/feeds/post`,
-        params: { index: pageNumber, categoryId: categoryId },
-        cancelToken: new axios.CancelToken(c => {
-          cancel = c;
-        }),
-      })
+      axios
+        .get(
+          `${BACK_URL}:${BACK_PORT}/feeds/post?index=${pageNumber}&categoryId=${categoryId}`,
+          {
+            timeout: 5000,
+            signal: controller.signal,
+          }
+        )
         .then(res => {
           setCardList(prevCardList => {
             return [...new Set([...prevCardList, ...res.data])];
@@ -83,13 +82,13 @@ export const useCardList = (pageNumber: number, categoryId: any) => {
           setHasMore(res.data.length > 0);
           setLoading(false);
         })
-        .catch(e => {
-          if (axios.isCancel(e)) {
+        .catch(error => {
+          if (error.name === 'AbortError') {
             return;
           }
           setError(true);
         });
-      return () => cancel();
+      return () => controller.abort();
     }
   }, [categoryId, pageNumber]);
   return { loading, error, cardList, hasMore };
